@@ -1,0 +1,128 @@
+﻿@using DACSForm.Context
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/7.10.1/polyfill.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/3.8.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<h2>Pax</h2>
+<div class="col-md-6">
+    <div class="col-md-4" style="float:left;">
+        <label>Start Date:</label>
+        @(Html.DevExtreme().DateBox().Type(DateBoxType.DateTime).Value(DateTime.Today).ID("startD").Width(350).Height(40))
+    </div>
+    <div class="col-md-4" style="float:left;">
+        <label>End Date:</label>
+        @(Html.DevExtreme().DateBox().ID("endD").Value(DateTime.Today.AddHours(23).AddMinutes(59)).Type(DateBoxType.DateTime).Width(350).Height(40))
+        </div>
+    <div class="col-md-4" style="padding-top:35px; float:left; ">@(Html.DevExtreme().Button().OnClick("filter").Type(ButtonType.Normal).Text("Show"))</div>
+     
+    </div>
+<br /><br /><br />
+    @(Html.DevExtreme().DataGrid<DacsTransaction>
+    ().ID("grid")
+    .ShowBorders(true)
+    .Selection(s => s.Mode(SelectionMode.Multiple))
+    .Export(e => e.Enabled(true).AllowExportSelectedData(true))
+    .GroupPanel(groupPanel => groupPanel.Visible(true))
+    .Grouping(grouping => grouping.AutoExpandAll(true))
+    .AllowColumnResizing(true)
+    .RowAlternationEnabled(true)
+    .FilterRow(row => row.Visible(true)
+    .ApplyFilter(GridApplyFilterMode.OnClick))
+    .ColumnAutoWidth(true)
+    .WordWrapEnabled(true)
+    .Pager(pager =>
+    {
+        pager.Visible(true);
+        pager.ShowPageSizeSelector(true);
+        pager.AllowedPageSizes(new JS("[5, 10, '100']"));
+        pager.ShowInfo(true);
+        pager.ShowNavigationButtons(true);
+    })
+    .DataSource(d => d.WebApi().Controller("Pax").LoadParams(new { startDate = new JS("function() { return $('#startD').dxDateBox('instance').option('value')}") , endDate = new JS("function() { return $('#endD').dxDateBox('instance').option('value')}") })
+)
+    .OnExporting("exporting")
+    .Columns(columns =>
+    {
+        columns.AddFor(m => m.OrderDate);
+        columns.AddFor(m => m.DepTime).Format("HH:mm").Caption("Time");
+        columns.AddFor(m => m.FlightNo);
+        columns.AddFor(m => m.CustomerNo);
+        columns.AddFor(m => m.CustomerDetail);
+        columns.AddFor(m => m.ShortcutDimension1Code);
+        columns.AddFor(m => m.Leg);
+        columns.AddFor(m => m.Class);
+        columns.AddFor(m => m.Status);
+        columns.AddFor(m => m.MaxCapacity);
+        columns.AddFor(m => m.InitialPax);
+        columns.AddFor(m => m.ActualPax);
+        columns.AddFor(m => m.RangeType);
+        columns.AddFor(m => m.ArrFrom);
+        columns.AddFor(m => m.LoadPax);
+        columns.AddFor(m => m.Cancelled);
+
+    })
+
+    .Paging(p => p.PageSize(10))
+    .FilterRow(f => f.Visible(true))
+    .HeaderFilter(f => f.Visible(true))
+
+    .GroupPanel(p => p.Visible(true))
+    .Grouping(g => g.AutoExpandAll(false))
+    .RemoteOperations(true)
+    .OnCellPrepared("OnPrepared")
+
+
+
+    )
+
+    <script>
+
+
+        function exporting(e) {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('PAX');
+
+            DevExpress.excelExporter.exportDataGrid({
+                component: e.component,
+                worksheet,
+                autoFilterEnabled: true,
+            }).then(() => {
+                workbook.xlsx.writeBuffer().then((buffer) => {
+                    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'Pax.xlsx');
+                });
+            });
+            e.cancel = true;
+        }
+
+
+        function filter() {
+
+
+            var endDate = $("#endD").dxDateBox("instance").option("value")
+            var startDate = $("#startD").dxDateBox("instance").option("value")
+            $("#grid").dxDataGrid("instance").filter([["OrderDate", ">=", startDate], "and",
+            ["OrderDate", "<=", endDate]])
+
+        }
+
+        function OnPrepared(e) {
+            if (e.rowType == 'data') {
+                if (e.columnIndex == 16) {
+                 e.cellElement.text("");
+                    if (e.value == 0) { e.cellElement.text("No"); }
+                    if (e.value == 1) { e.cellElement.text("Yes"); }
+                }
+                if (e.columnIndex == 13) {
+                 
+                    switch (e.value) {
+                        case 0: { e.cellElement.text("Short"); } break;
+                        case 1: { e.cellElement.text("Medium"); } break;
+                        case 2: { e.cellElement.text("Long"); } break;
+                        case 3: { e.cellElement.text("ER"); } break;
+                    }
+                }
+            }
+        }
+    </script>
